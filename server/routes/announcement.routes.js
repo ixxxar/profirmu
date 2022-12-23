@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router({ mergeParams: true });
 const Announcement = require("../models/Announcement");
 const Reply = require("../models/Reply");
+const auth = require("../middleware/auth.middleware");
 
 router.get("/getAnnouncements", async (req, res) => {
   try {
@@ -52,8 +53,40 @@ router.post("/createComment", async (req, res) => {
       announce,
     });
     announce.items.push(newComment._id);
+    const replies = await Reply.find({ announce: announce._id });
+    const rateList = replies.map((i) => i.rate);
+    const sumRates = rateList.reduce((acc, i) => {
+      return (acc += i);
+    }, 0);
+    announce.rate = Math.floor(sumRates / rateList.length);
     announce.save();
     res.send(newComment);
+  } catch (e) {
+    res.status(501).json({
+      message: "Произошла ошибка на сервере",
+    });
+  }
+});
+
+router.post("/removeAnnouncement", auth, async (req, res) => {
+  try {
+    const { announceId } = req.body;
+    const announce = await Announcement.findById(announceId);
+    await announce.remove();
+    res.send(announce);
+  } catch (e) {
+    res.status(501).json({
+      message: "Произошла ошибка на сервере",
+    });
+  }
+});
+
+router.post("/removeReply", auth, async (req, res) => {
+  try {
+    const { replyId } = req.body;
+    const reply = await Reply.findById(replyId);
+    await reply.remove();
+    res.send(reply);
   } catch (e) {
     res.status(501).json({
       message: "Произошла ошибка на сервере",
